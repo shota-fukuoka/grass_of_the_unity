@@ -2,34 +2,19 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class grass : MonoBehaviour
+class grass
 {
-    // Start is called before the first frame update
-    void Start()
+    private Vector3 m_pos;
+
+    public Vector3 Position
     {
-        Mesh mesh = new Mesh();
-        mesh.vertices = new Vector3[] {
-            new Vector3(-0.25f, -1.0f, 0),
-            new Vector3(0.0f, 1.0f, 0),
-            new Vector3(0.25f, -1.0f, 0),
-        };
-
-        mesh.triangles = new int[] { 0, 1, 2 };
-
-
-
-        mesh.colors = new Color[] {
-            new Color(0.0f, 0.0f, 0.0f),
-            new Color(0.0f, 1.0f, 0.0f),
-            new Color(0.0f, 0.0f, 0.0f),
-        };
-
-        GetComponent<MeshFilter>().sharedMesh = mesh;
+        get { return this.m_pos; }
+        set { this.m_pos = value; }
     }
 
-    // Update is called once per frame
-    void Update()
+    public grass(Vector3 pos)
     {
-        
+        this.m_pos = pos;
     }
+
 }

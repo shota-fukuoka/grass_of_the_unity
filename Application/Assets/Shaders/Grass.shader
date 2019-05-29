@@ -4,44 +4,102 @@ Shader "Unlit/Grass"
 {
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
-        LOD 100
+		ZWrite On
+		Blend SrcAlpha OneMinusSrcAlpha
 
-        Pass
-        {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            // make fog work
-            #pragma multi_compile_fog
+		Pass
+		{
+			CGPROGRAM
+			
+			#pragma target 5.0
 
-            #include "UnityCG.cginc"
+			#pragma vertex vert
+			#pragma geometry geom
+			#pragma fragment frag
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-				fixed3 color : COLOR0;
-            };
+			#include "UnityCG.cginc"
 
-            struct v2f
-            {
-				float4 vertex : SV_POSITION;
-				fixed3 color : COLOR0;
-            };
+			struct Grass
+			{
+				float3 pos;
+			};
 
-            v2f vert (appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-				o.color = v.color;
-                return o;
-            }
+			StructuredBuffer<Grass> GrassLand;
 
-            fixed4 frag (v2f i) : SV_Target
-            {
-                return fixed4(i.color,1);
-            }
-            ENDCG
-        }
+			struct VSOut {
+				float4 pos : SV_POSITION;
+				float2 tex : TEXCOORD0;
+				float4 col : COLOR;
+			};
+
+			VSOut vert(uint id : SV_VertexID)
+			{
+				VSOut output;
+				output.pos = float4(GrassLand[id].pos, 1);
+				output.tex = float2(0, 0);
+				output.col = float4(0,0,0,1);
+
+				return output;
+			}
+
+			// ジオメトリシェーダ
+			[maxvertexcount(4)]
+			void geom(point VSOut input[1], inout TriangleStream<VSOut> outStream)
+			{
+				VSOut output;
+
+				// 全ての頂点で共通の値を計算しておく
+				float4 pos = input[0].pos;
+				float4 col = input[0].col;
+
+				// 四角形になるように頂点を生産
+				for (int x = 0; x < 2; x++)
+				{
+					for (int y = 0; y < 2; y++)
+					{
+						// ビルボード用の行列
+						float4x4 billboardMatrix = UNITY_MATRIX_V;
+						billboardMatrix._m03 =
+							billboardMatrix._m13 =
+							billboardMatrix._m23 =
+							billboardMatrix._m33 = 0;
+
+						// テクスチャ座標
+						float2 tex = float2(x, y);
+						output.tex = tex;
+
+						// 頂点位置を計算
+						output.pos = pos + mul(float4((tex * 2 - float2(1, 1)) * 0.2, 0, 1), billboardMatrix);
+						output.pos = mul(UNITY_MATRIX_VP, output.pos);
+
+						// 色
+						output.col = col;
+
+						// ストリームに頂点を追加
+						outStream.Append(output);
+					}
+				}
+
+				// トライアングルストリップを終了
+				outStream.RestartStrip();
+			}
+
+			// ピクセルシェーダー
+			fixed4 frag(VSOut i) : COLOR
+			{
+				// 出力はテクスチャカラーと頂点色
+				float4 col = i.col;
+
+				// アルファが一定値以下なら中断
+				if (col.a < 0.3) discard;
+
+				// 色を返す
+				return col;
+			}
+
+			ENDCG
+	
+		}
+
     }
 }
