@@ -459,5 +459,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_grassShader: {fileID: 4800000, guid: fd88173435e3bdc47add6765ffb619c1, type: 3}
   m_grassComputeShader: {fileID: 0}
-  GRASS_MAX: 6000
-  m_fGrassPos: 100
+  GRASS_MAX: 1000000
+  m_fGrassPos: 1000

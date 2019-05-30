@@ -43,42 +43,65 @@ Shader "Unlit/Grass"
 			}
 
 			// ジオメトリシェーダ
-			[maxvertexcount(4)]
+			[maxvertexcount(3)]
 			void geom(point VSOut input[1], inout TriangleStream<VSOut> outStream)
 			{
 				VSOut output;
 
 				// 全ての頂点で共通の値を計算しておく
-				float4 pos = input[0].pos;
-				float4 col = input[0].col;
+				float4 pos[3];
+				pos[0] = float4(input[0].pos);
+				pos[1] = float4(input[0].pos.x+0.5f, input[0].pos.y + 1, input[0].pos.z, input[0].pos.w);
+				pos[2] = float4(input[0].pos.x + 1, input[0].pos.y, input[0].pos.z, input[0].pos.w);
 
-				// 四角形になるように頂点を生産
-				for (int x = 0; x < 2; x++)
-				{
-					for (int y = 0; y < 2; y++)
-					{
-						// ビルボード用の行列
-						float4x4 billboardMatrix = UNITY_MATRIX_V;
-						billboardMatrix._m03 =
-							billboardMatrix._m13 =
-							billboardMatrix._m23 =
-							billboardMatrix._m33 = 0;
+				float4 col[3];
+				col[0] = float4(0,0,0,1);
+				col[1] = float4(0,1,0,1);
+				col[2] = float4(0,0,0,1);
 
-						// テクスチャ座標
-						float2 tex = float2(x, y);
-						output.tex = tex;
 
-						// 頂点位置を計算
-						output.pos = pos + mul(float4((tex * 2 - float2(1, 1)) * 0.2, 0, 1), billboardMatrix);
-						output.pos = mul(UNITY_MATRIX_VP, output.pos);
+				// ビルボード用の行列
+				float4x4 billboardMatrix = UNITY_MATRIX_V;
+				billboardMatrix._m03 =
+					billboardMatrix._m13 =
+					billboardMatrix._m23 =
+					billboardMatrix._m33 = 0;
 
-						// 色
-						output.col = col;
+				// テクスチャ座標
+				float2 tex = float2(1, 1);
+				output.tex = tex;
 
-						// ストリームに頂点を追加
-						outStream.Append(output);
-					}
-				}
+				// 頂点位置を計算
+				output.pos = pos[0];
+				output.pos = mul(UNITY_MATRIX_VP, output.pos);
+
+				// 色
+				output.col = col[0];
+
+				// ストリームに頂点を追加
+				outStream.Append(output);
+
+				// 頂点位置を計算
+				output.pos = pos[1];
+				output.pos = mul(UNITY_MATRIX_VP, output.pos);
+
+				// 色
+				output.col = col[1];
+
+				// ストリームに頂点を追加
+				outStream.Append(output);
+
+				// 頂点位置を計算
+				output.pos = pos[2];
+				output.pos = mul(UNITY_MATRIX_VP, output.pos);
+
+				// 色
+				output.col = col[2];
+
+				// ストリームに頂点を追加
+				outStream.Append(output);
+				
+				
 
 				// トライアングルストリップを終了
 				outStream.RestartStrip();
