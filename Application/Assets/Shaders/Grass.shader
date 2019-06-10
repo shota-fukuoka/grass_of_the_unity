@@ -19,105 +19,75 @@ Shader "Unlit/Grass"
 
 			#include "UnityCG.cginc"
 
-			struct Grass
+			struct VSIn
 			{
-				float3 pos;
+				float4 pos : POSITION;
+				float3 nor : NORMAL;
+				float4 tan : TANGENT;
 			};
 
-			StructuredBuffer<Grass> GrassLand;
+			float DeltaTime;
+
+			StructuredBuffer<VSIn> VSInput;
 
 			struct VSOut {
 				float4 pos : SV_POSITION;
-				float2 tex : TEXCOORD0;
-				float4 col : COLOR;
+				float3 nor : NORMAL;
+				float4 tan : TANGENT;
 			};
 
 			VSOut vert(uint id : SV_VertexID)
 			{
 				VSOut output;
-				output.pos = float4(GrassLand[id].pos, 1);
-				output.tex = float2(0, 0);
-				output.col = float4(0,0,0,1);
+				output.pos = VSInput[id].pos;
+				output.nor = VSInput[id].nor;
+				output.tan = VSInput[id].tan;
+			
+				return output;
+			}
 
+			struct GSOut
+			{
+				float4 pos : SV_POSITION;
+				float2 uv : TEXCODE0;
+			};
+
+			GSOut VertexOutput(float3 pos, float2 uv)
+			{
+				GSOut output;
+				output.pos = UnityObjectToClipPos(pos);
+				output.uv = uv;
 				return output;
 			}
 
 			// ジオメトリシェーダ
 			[maxvertexcount(3)]
-			void geom(point VSOut input[1], inout TriangleStream<VSOut> outStream)
+			void geom(point VSOut input[1], inout TriangleStream<GSOut> outStream)
 			{
-				VSOut output;
+				GSOut output;
 
-				// 全ての頂点で共通の値を計算しておく
-				float4 pos[3];
-				pos[0] = float4(input[0].pos);
-				pos[1] = float4(input[0].pos.x+0.5f, input[0].pos.y + 1, input[0].pos.z, input[0].pos.w);
-				pos[2] = float4(input[0].pos.x + 1, input[0].pos.y, input[0].pos.z, input[0].pos.w);
+				float3 pos = input[0].pos;
 
-				float4 col[3];
-				col[0] = float4(0,0,0,1);
-				col[1] = float4(0,1,0,1);
-				col[2] = float4(0,0,0,1);
+				float3 vNormal = input[0].nor;
+				float4 vTangent = input[0].tan;
+				float3 vBinormal = cross(vNormal, vTangent) * vTangent.w;
 
+				float3x3 tangentToLocal = float3x3(
+					vTangent.x, vBinormal.x, vNormal.x,
+					vTangent.y, vBinormal.y, vNormal.y,
+					vTangent.z, vBinormal.z, vNormal.z
+					);
 
-				// ビルボード用の行列
-				float4x4 billboardMatrix = UNITY_MATRIX_V;
-				billboardMatrix._m03 =
-					billboardMatrix._m13 =
-					billboardMatrix._m23 =
-					billboardMatrix._m33 = 0;
-
-				// テクスチャ座標
-				float2 tex = float2(1, 1);
-				output.tex = tex;
-
-				// 頂点位置を計算
-				output.pos = pos[0];
-				output.pos = mul(UNITY_MATRIX_VP, output.pos);
-
-				// 色
-				output.col = col[0];
-
-				// ストリームに頂点を追加
-				outStream.Append(output);
-
-				// 頂点位置を計算
-				output.pos = pos[1];
-				output.pos = mul(UNITY_MATRIX_VP, output.pos);
-
-				// 色
-				output.col = col[1];
-
-				// ストリームに頂点を追加
-				outStream.Append(output);
-
-				// 頂点位置を計算
-				output.pos = pos[2];
-				output.pos = mul(UNITY_MATRIX_VP, output.pos);
-
-				// 色
-				output.col = col[2];
-
-				// ストリームに頂点を追加
-				outStream.Append(output);
-				
-				
-
-				// トライアングルストリップを終了
+				outStream.Append(VertexOutput(pos + mul(tangentToLocal, float3(-0.5, 0, 0)), float2(0,0)));
+				outStream.Append(VertexOutput(pos + mul(tangentToLocal, float3(0, 0, 1)), float2(0.5, 1)));
+				outStream.Append(VertexOutput(pos + mul(tangentToLocal, float3(0.5, 0, 0)),float2(1, 0)));
 				outStream.RestartStrip();
 			}
 
 			// ピクセルシェーダー
-			fixed4 frag(VSOut i) : COLOR
+			fixed4 frag(GSOut i, fixed facing : VFACE) : SV_Target
 			{
-				// 出力はテクスチャカラーと頂点色
-				float4 col = i.col;
-
-				// アルファが一定値以下なら中断
-				if (col.a < 0.3) discard;
-
-				// 色を返す
-				return col;
+				return lerp(float4(0,1,0,1), float4(1,1,0,1), i.uv.y);
 			}
 
 			ENDCG

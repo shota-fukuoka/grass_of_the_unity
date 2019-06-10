@@ -23,20 +23,23 @@ public class grass_land : MonoBehaviour
     [SerializeField]
     float m_fGrassPos = 0;
 
+    [SerializeField]
+    Terrain m_terrain;
+
     struct Grass
     {
 
-        private Vector3 m_pos;
+        private Vector4 m_pos;
 
-        public Vector3 Position
-        {
-            get { return this.m_pos; }
-            set { this.m_pos = value; }
-        }
+        private Vector3 m_nor;
 
-        public Grass(Vector3 pos)
+        private Vector4 m_tan;
+
+        public Grass(Vector4 pos, Vector3 nor, Vector3 tan)
         {
             this.m_pos = pos;
+            this.m_nor = nor;
+            this.m_tan = tan;
         }
     }
 
@@ -44,7 +47,6 @@ public class grass_land : MonoBehaviour
     void Awake()
     {
         m_grassMaterial = new Material(m_grassShader);
-
 
         InitComputeBuffer();
         //for (int i = 0; i < GRASS_MAX; i++)
@@ -66,16 +68,22 @@ public class grass_land : MonoBehaviour
 
     void InitComputeBuffer()
     {
-        m_grassComputeBuffer = new ComputeBuffer(GRASS_MAX, Marshal.SizeOf(typeof(Vector3)));
+        m_grassComputeBuffer = new ComputeBuffer(GRASS_MAX, Marshal.SizeOf(typeof(Grass)));
 
         Grass[] grassland = new Grass[m_grassComputeBuffer.count];
 
         for (int i = 0; i < m_grassComputeBuffer.count; i++)
         {
-            float nPosX = Hulton(i, 2) * m_fGrassPos;
-            float nPosZ = Hulton(i, 3) * m_fGrassPos;
+           float nPosX = Hulton(i, 2) * m_fGrassPos;
+           float nPosZ = Hulton(i, 3) * m_fGrassPos;
 
-            grassland[i] = new Grass(new Vector3(nPosX, 0, nPosZ));
+           float nPosY = m_terrain.terrainData.GetInterpolatedHeight(nPosX / 1000, nPosZ / 1000);
+
+           Vector3 normal = m_terrain.terrainData.GetInterpolatedNormal(nPosX / 1000, nPosZ / 1000);
+
+           Vector3 tangent = Vector3.Cross(normal, Vector3.forward);
+
+           grassland[i] = new Grass(new Vector3(nPosX, nPosY, nPosZ), normal, new Vector4(tangent.x, tangent.y, tangent.z, 1));
         }
 
         m_grassComputeBuffer.SetData(grassland);
@@ -84,14 +92,16 @@ public class grass_land : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        //m_grassComputeShader.SetBuffer(0, "Grass", m_grassComputeBuffer);
+        m_grassMaterial.SetFloat("DeltaTime", Time.time);
+        //m_grassComputeShader.SetVector("Position", gameObject.transform.position);
         //m_grassComputeShader.SetFloat("DeltaTime", Time.deltaTime);
         //m_grassComputeShader.Dispatch(0, m_grassComputeBuffer.count / 8 + 1, 1, 1);
     }
 
     void OnRenderObject()
     {
-        m_grassMaterial.SetBuffer("GrassLand", m_grassComputeBuffer);
+        m_grassMaterial.SetBuffer("VSInput", m_grassComputeBuffer);
+        
 
         m_grassMaterial.SetPass(0);
 
